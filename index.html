@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BookDate - Bookstore Interactive</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Framer Motion -->
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+        
+        body {
+            background-color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* Use dvh for dynamic viewport height on mobile browsers */
+            min-height: 100vh; 
+            min-height: 100dvh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Hide scrollbar */
+        ::-webkit-scrollbar { display: none; }
+
+        .font-serif { font-family: 'Libre Baskerville', serif; }
+        
+        #root {
+            width: 100%;
+            /* Fix height to fit screen exactly without scroll on body */
+            height: 100vh;
+            height: 100dvh; 
+            background: white;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Desktop/iPad Landscape Optimization */
+        @media (min-width: 835px) {
+            #root {
+                max-width: 834px; 
+                max-height: 1112px;
+                border-radius: 30px;
+                height: 90vh;
+                margin: 20px;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const { motion, AnimatePresence, useAnimation, useMotionValue, useTransform } = window.Motion;
+
+    // --- Icons ---
+    const IconHeart = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+    );
+    const IconX = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    );
+    const IconMapPin = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+    );
+
+    // --- 1. DATA SETUP (With D2D Path Prefix) ---
+    
+    const USER_TAGS = [
+        "Sci-Fi Geek", "Philosophy Thinker", "Political Enthusiast", 
+        "Romantic Soul", "Tragedy Lover", "Feminist", 
+        "Optimist", "Nature Lover", "History Buff"
+    ];
+
+    // Prefix for GitHub Repo Structure
+    const PATH_PREFIX = "images/";
+
+    const BOOKS = [
+        {
+            id: 1,
+            title: "Harry Potter & The Deathly Hallows",
+            author: "J.K. Rowling",
+            cover: `${PATH_PREFIX}Harry Potter.jpg`,
+            tags: ["Fantasy", "Adventure", "Magic"],
+            preferredUserTags: ["Optimist", "Romantic Soul", "Nature Lover"],
+            questions: [
+                { q: "Is death the end?", options: [{ text: "Yes, it's final.", score: 0 }, { text: "No, just the next adventure.", score: 1 }] }
+            ],
+            location: "Shelf A1 (Young Adult)"
+        },
+        {
+            id: 2,
+            title: "Dune",
+            author: "Frank Herbert",
+            cover: `${PATH_PREFIX}Dune.jpg`,
+            tags: ["Sci-Fi", "Epic", "Ecology"],
+            preferredUserTags: ["Sci-Fi Geek", "Political Enthusiast", "Philosophy Thinker"],
+            questions: [
+                { q: "Fear is the mind-killer. What do you do?", options: [{ text: "I avoid it.", score: 0 }, { text: "I let it pass through me.", score: 1 }] }
+            ],
+            location: "Shelf S1 (Sci-Fi Classics)"
+        },
+        {
+            id: 3,
+            title: "Neuromancer",
+            author: "William Gibson",
+            cover: `${PATH_PREFIX}Neuromancer.jpg`,
+            tags: ["Cyberpunk", "Dystopian", "Tech"],
+            preferredUserTags: ["Sci-Fi Geek", "Philosophy Thinker"],
+            questions: [
+                { q: "High tech, low life. Is technology our savior?", options: [{ text: "It's our doom.", score: 1 }, { text: "It's our evolution.", score: 1 }] }
+            ],
+            location: "Shelf S2 (Cyberpunk)"
+        },
+        {
+            id: 4,
+            title: "Educated",
+            author: "Tara Westover",
+            cover: `${PATH_PREFIX}Educated.jpg`,
+            tags: ["Memoir", "Growth", "Resilience"],
+            preferredUserTags: ["Feminist", "Philosophy Thinker", "History Buff"],
+            questions: [
+                { q: "Can you ever truly leave your past behind?", options: [{ text: "I reinvent myself.", score: 0 }, { text: "No, it shapes who I am.", score: 1 }] }
+            ],
+            location: "Shelf B3 (Non-Fiction)"
+        },
+        {
+            id: 5,
+            title: "The Baron in the Trees",
+            author: "Italo Calvino",
+            cover: `${PATH_PREFIX}The Baron in the Trees.jpg`,
+            tags: ["Classic", "Whimsical", "Nature"],
+            preferredUserTags: ["Romantic Soul", "Nature Lover", "Philosophy Thinker"],
+            questions: [
+                { q: "Would you live life without ever touching the ground?", options: [{ text: "Sounds lonely.", score: 0 }, { text: "Sounds like freedom.", score: 1 }] }
+            ],
+            location: "Shelf F1 (Literature)"
+        },
+        {
+            id: 6,
+            title: "A Room of One's Own",
+            author: "Virginia Woolf",
+            cover: `${PATH_PREFIX}A Room of One's Own.jpg`,
+            tags: ["Feminist", "Essay", "Classic"],
+            preferredUserTags: ["Feminist", "Philosophy Thinker", "Political Enthusiast"],
+            questions: [
+                { q: "What does a genius need most?", options: [{ text: "Raw talent.", score: 0 }, { text: "Money and a room.", score: 1 }] }
+            ],
+            location: "Shelf F4 (Essays)"
+        },
+        {
+            id: 7,
+            title: "Salome",
+            author: "Oscar Wilde",
+            cover: `${PATH_PREFIX}Salome.jpg`,
+            tags: ["Play", "Tragedy", "Decadence"],
+            preferredUserTags: ["Tragedy Lover", "Romantic Soul"],
+            questions: [
+                { q: "Is beauty worth killing for?", options: [{ text: "Never.", score: 0 }, { text: "Sometimes beauty is dangerous.", score: 1 }] }
+            ],
+            location: "Shelf D2 (Drama)"
+        },
+        {
+            id: 8,
+            title: "Solaris",
+            author: "Stanislaw Lem",
+            cover: `${PATH_PREFIX}Solaris.jpg`,
+            tags: ["Sci-Fi", "Psychological", "Alien"],
+            preferredUserTags: ["Sci-Fi Geek", "Philosophy Thinker", "Tragedy Lover"],
+            questions: [
+                { q: "If you met your deepest memory alive, what would you do?", options: [{ text: "Embrace it.", score: 1 }, { text: "Destroy it.", score: 0 }] }
+            ],
+            location: "Shelf S1 (Sci-Fi Classics)"
+        },
+        {
+            id: 9,
+            title: "Strait Is the Gate",
+            author: "André Gide",
+            cover: `${PATH_PREFIX}Strait Is the Gate.jpg`,
+            tags: ["Classic", "Moralist", "French"],
+            preferredUserTags: ["Tragedy Lover", "Philosophy Thinker"],
+            questions: [
+                { q: "Does true virtue require unhappiness?", options: [{ text: "Happiness is the goal.", score: 0 }, { text: "Sacrifice is noble.", score: 1 }] }
+            ],
+            location: "Shelf C2 (Translated Fiction)"
+        },
+        {
+            id: 10,
+            title: "Flowers for Algernon",
+            author: "Daniel Keyes",
+            cover: `${PATH_PREFIX}Flowers for Algernon.jpg`,
+            tags: ["Sci-Fi", "Tragedy", "Psychology"],
+            preferredUserTags: ["Tragedy Lover", "Sci-Fi Geek"],
+            questions: [
+                { q: "Is ignorance bliss?", options: [{ text: "Yes, happiness matters.", score: 0 }, { text: "No, I want the truth.", score: 1 }] }
+            ],
+            location: "Shelf F2 (Modern Classics)"
+        },
+        {
+            id: 11,
+            title: "The Unbearable Lightness of Being",
+            author: "Milan Kundera",
+            cover: `${PATH_PREFIX}The Unbearable Lightness of Being.jpg`,
+            tags: ["Philosophy", "Romance", "Political"],
+            preferredUserTags: ["Philosophy Thinker", "Political Enthusiast", "Romantic Soul"],
+            questions: [
+                { q: "Which is better?", options: [{ text: "Lightness (Freedom).", score: 1 }, { text: "Weight (Meaning).", score: 1 }] }
+            ],
+            location: "Shelf C1 (Eastern Euro)"
+        },
+        {
+            id: 12,
+            title: "Letter from an Unknown Woman",
+            author: "James Naremore",
+            cover: `${PATH_PREFIX}Letter from an Unknown Woman.jpg`,
+            tags: ["Romance", "Tragedy", "Cinema"],
+            preferredUserTags: ["Romantic Soul", "Tragedy Lover"],
+            questions: [
+                { q: "Can you love someone who doesn't know you exist?", options: [{ text: "That's not love.", score: 0 }, { text: "That is the purest love.", score: 1 }] }
+            ],
+            location: "Shelf M3 (Cinema/Fiction)"
+        },
+        {
+            id: 13,
+            title: "1984",
+            author: "George Orwell",
+            cover: `${PATH_PREFIX}1984.jpg`,
+            tags: ["Dystopian", "Political", "Classic"],
+            preferredUserTags: ["Political Enthusiast", "Philosophy Thinker"],
+            questions: [
+                { q: "Freedom is the freedom to say...", options: [{ text: "2 + 2 = 4.", score: 1 }, { text: "Whatever the Party says.", score: 0 }] }
+            ],
+            location: "Shelf B2 (Classics)"
+        }
+    ];
+
+    // --- 2. COMPONENTS ---
+
+    // Responsive Fix: Flex Layout to ensure button sticks to bottom without overflow
+    const TagSelection = ({ onStart }) => {
+        const [selected, setSelected] = useState([]);
+
+        const toggleTag = (tag) => {
+            if (selected.includes(tag)) {
+                setSelected(selected.filter(t => t !== tag));
+            } else {
+                setSelected([...selected, tag]);
+            }
+        };
+
+        return (
+            <div className="h-full flex flex-col relative z-10 bg-white">
+                <div className="flex-1 overflow-y-auto p-10 pb-0">
+                    <div className="mt-6">
+                        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 font-serif">Who are you?</h1>
+                        <p className="text-gray-500 text-lg md:text-xl mb-10">Select tags to help books find you.</p>
+                        
+                        <div className="flex flex-wrap gap-4">
+                            {USER_TAGS.map(tag => (
+                                <button
+                                    key={tag}
+                                    onClick={() => toggleTag(tag)}
+                                    className={`px-5 py-3 rounded-full text-base md:text-lg font-medium transition-all duration-300 border-2 
+                                    ${selected.includes(tag) 
+                                        ? 'bg-rose-600 border-rose-600 text-white shadow-lg transform scale-105' 
+                                        : 'bg-white border-gray-200 text-gray-600 hover:border-rose-300'}`}
+                                >
+                                    {tag}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Fixed bottom area */}
+                <div className="p-10 pt-4 shrink-0">
+                    <button 
+                        disabled={selected.length === 0}
+                        onClick={() => onStart(selected)}
+                        className="w-full py-5 md:py-6 bg-gray-900 text-white text-lg md:text-xl font-bold rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed transition-opacity shadow-xl"
+                    >
+                        Start Matching
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const SwipeCard = ({ book, onSwipe }) => {
+        const x = useMotionValue(0);
+        const rotate = useTransform(x, [-200, 200], [-15, 15]);
+        const opacityLike = useTransform(x, [50, 150], [0, 1]);
+        const opacityNope = useTransform(x, [-50, -150], [0, 1]);
+
+        const handleDragEnd = (event, info) => {
+            if (info.offset.x > 100) {
+                onSwipe('right');
+            } else if (info.offset.x < -100) {
+                onSwipe('left');
+            }
+        };
+
+        return (
+            <motion.div 
+                className="absolute w-full h-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 cursor-grab active:cursor-grabbing flex flex-col"
+                style={{ x, rotate }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                onDragEnd={handleDragEnd}
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 1.05, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+            >
+                {/* Overlays */}
+                <motion.div style={{ opacity: opacityLike }} className="absolute top-10 left-10 border-4 border-green-500 rounded-xl px-6 py-2 z-30 transform -rotate-12 bg-white/30 backdrop-blur-md pointer-events-none">
+                    <span className="text-green-600 font-extrabold text-4xl tracking-widest">LIKE</span>
+                </motion.div>
+                <motion.div style={{ opacity: opacityNope }} className="absolute top-10 right-10 border-4 border-red-500 rounded-xl px-6 py-2 z-30 transform rotate-12 bg-white/30 backdrop-blur-md pointer-events-none">
+                    <span className="text-red-600 font-extrabold text-4xl tracking-widest">NOPE</span>
+                </motion.div>
+
+                {/* Cover Image - Flex Grow to take available space */}
+                <div className="flex-grow relative bg-gray-100 overflow-hidden">
+                    <img src={book.cover} alt={book.title} className="w-full h-full object-cover select-none pointer-events-none" />
+                    <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+                    <div className="absolute bottom-6 left-6 text-white pr-6">
+                        <h2 className="text-3xl md:text-4xl font-serif font-bold leading-tight mb-2 drop-shadow-lg">{book.title}</h2>
+                        <p className="text-lg md:text-xl opacity-90 font-medium tracking-wide">{book.author}</p>
+                    </div>
+                </div>
+
+                {/* Details - Fixed height content */}
+                <div className="p-6 md:p-8 bg-white shrink-0">
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {book.tags.map(t => (
+                            <span key={t} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs md:text-sm font-bold rounded-lg uppercase tracking-wider border border-gray-200">
+                                {t}
+                            </span>
+                        ))}
+                    </div>
+                    <p className="text-gray-400 text-xs md:text-sm mt-2">Swipe right to connect.</p>
+                </div>
+            </motion.div>
+        );
+    };
+
+    const WaitingScreen = ({ book }) => {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-10 bg-white/95 backdrop-blur-xl z-50">
+                <div className="relative w-32 h-32 md:w-40 md:h-40 mb-10">
+                    <img src={book.cover} className="w-full h-full rounded-full object-cover border-4 border-white shadow-xl z-10 relative" />
+                    <motion.div 
+                        className="absolute inset-0 rounded-full border-4 border-rose-400"
+                        animate={{ scale: [1, 1.4], opacity: [1, 0] }}
+                        transition={{ repeat: Infinity, duration: 1.8 }}
+                    />
+                </div>
+                <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-2 font-serif text-center">Waiting for response...</h3>
+                <p className="text-gray-500 text-center text-sm md:text-base">Checking if {book.title} matches your vibe.</p>
+            </div>
+        );
+    };
+
+    // Responsive Fix: Using min-h-0 to allow nested flex scrolling
+    const ChatScreen = ({ book, onComplete }) => {
+        const [step, setStep] = useState(0);
+        const [history, setHistory] = useState([]); 
+        const [score, setScore] = useState(0);
+        const scrollRef = useRef(null);
+
+        useEffect(() => {
+            if (step === 0 && history.length === 0) {
+                setTimeout(() => {
+                    setHistory([{ sender: 'book', text: `Wait. I need to know more first. ${book.questions[0].q}` }]);
+                }, 600);
+            }
+        }, [step]);
+
+        useEffect(() => {
+             if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }, [history])
+
+        const handleAnswer = (option) => {
+            const newHistory = [...history, { sender: 'user', text: option.text }];
+            setHistory(newHistory);
+            const newScore = score + option.score;
+            setScore(newScore);
+
+            setTimeout(() => {
+                if (step + 1 < book.questions.length) {
+                    setStep(step + 1);
+                    setHistory(prev => [...prev, { sender: 'book', text: book.questions[step + 1].q }]);
+                } else {
+                    onComplete(newScore >= 1);
+                }
+            }, 800);
+        };
+
+        const currentQuestion = book.questions[step];
+
+        return (
+            <div className="h-full flex flex-col bg-gray-50 w-full overflow-hidden">
+                {/* Header - Fixed */}
+                <div className="p-4 md:p-6 bg-white border-b border-gray-200 flex items-center shadow-sm z-10 shrink-0">
+                    <img src={book.cover} className="w-10 h-10 md:w-14 md:h-14 rounded-full object-cover border border-gray-200 mr-4" />
+                    <div>
+                        <h3 className="font-bold text-base md:text-lg leading-tight max-w-[200px] truncate">{book.title}</h3>
+                        <span className="text-xs text-green-500 font-bold uppercase tracking-wider">Online</span>
+                    </div>
+                </div>
+
+                {/* Chat History - Scrollable */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 w-full min-h-0" ref={scrollRef}>
+                    {history.map((msg, idx) => (
+                        <motion.div 
+                            key={idx}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                            <div className={`max-w-[85%] p-4 md:p-5 rounded-2xl text-base md:text-lg leading-relaxed shadow-sm ${
+                                msg.sender === 'user' 
+                                ? 'bg-rose-500 text-white rounded-br-none' 
+                                : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                            }`}>
+                                {msg.text}
+                            </div>
+                        </motion.div>
+                    ))}
+                    
+                    {history.length > 0 && history[history.length-1].sender === 'user' && step < book.questions.length && (
+                        <div className="flex justify-start">
+                           <div className="bg-gray-200 rounded-full px-5 py-2 text-sm text-gray-500 animate-pulse font-medium">Writing...</div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Options - Fixed at bottom */}
+                <div className="p-4 md:p-6 bg-white border-t border-gray-200 shrink-0 pb-8 md:pb-10">
+                    {history.length > 0 && history[history.length-1].sender === 'book' && currentQuestion ? (
+                        <div className="grid gap-3 md:gap-4">
+                            {currentQuestion.options.map((opt, idx) => (
+                                <button 
+                                    key={idx}
+                                    onClick={() => handleAnswer(opt)}
+                                    className="w-full p-4 md:p-5 border-2 border-gray-100 rounded-xl text-left hover:bg-rose-50 hover:border-rose-200 font-semibold transition-all text-base md:text-lg active:scale-98 text-gray-700"
+                                >
+                                    {opt.text}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-gray-400 text-sm pb-4 font-medium">Waiting for response...</div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const ResultScreen = ({ status, book, onReset }) => {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-6 md:p-8 bg-white text-center relative overflow-y-auto">
+                <motion.div 
+                    initial={{ scale: 0, rotate: -180 }} 
+                    animate={{ scale: 1, rotate: 0 }} 
+                    className="mb-6 md:mb-8 text-7xl md:text-8xl filter drop-shadow-lg"
+                    transition={{ type: "spring", damping: 12 }}
+                >
+                    {status === 'match' ? '💖' : '👋'}
+                </motion.div>
+
+                <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4 text-gray-900">
+                    {status === 'match' ? "It's a Match!" : "Not quite a match..."}
+                </h2>
+
+                <p className="text-lg md:text-xl text-gray-600 mb-8 md:mb-10 max-w-md leading-relaxed">
+                    {status === 'match' 
+                        ? <span>You and <strong>{book.title}</strong> are meant to be. Go pick it up before someone else does.</span> 
+                        : <span>Maybe <strong>{book.title}</strong> wasn't the one, but it's still worth a read. We saved it for you anyway.</span>}
+                </p>
+
+                <div className="w-full max-w-sm bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-8 md:mb-12 flex flex-col items-center">
+                    <div className="flex items-center justify-center text-rose-500 mb-3 bg-white p-3 rounded-full shadow-sm">
+                        <IconMapPin className="w-6 h-6 md:w-8 md:h-8" />
+                    </div>
+                    <div className="text-xl md:text-2xl font-mono font-bold text-gray-800 tracking-tight">
+                        {book.location}
+                    </div>
+                    <div className="text-xs md:text-sm text-gray-500 mt-1 uppercase tracking-widest font-semibold">In-Store Location</div>
+                </div>
+
+                <button 
+                    onClick={onReset}
+                    className="px-8 py-3 md:px-10 md:py-4 bg-gray-900 text-white rounded-full font-bold text-lg shadow-xl hover:bg-gray-800 transition-colors active:scale-95 mb-8"
+                >
+                    Find Another Match
+                </button>
+            </div>
+        );
+    };
+
+    // --- 3. MAIN CONTROLLER ---
+
+    const App = () => {
+        const [screen, setScreen] = useState('tags'); 
+        const [userTags, setUserTags] = useState([]);
+        const [currentBookIndex, setCurrentBookIndex] = useState(0);
+        const [resultStatus, setResultStatus] = useState(null); 
+
+        const startMatching = (tags) => {
+            setUserTags(tags);
+            setScreen('deck');
+        };
+
+        const handleSwipe = (direction) => {
+            if (direction === 'left') {
+                nextBook();
+            } else {
+                setScreen('waiting');
+                setTimeout(() => {
+                    checkMatch(BOOKS[currentBookIndex]);
+                }, 1500);
+            }
+        };
+
+        const nextBook = () => {
+            if (currentBookIndex + 1 < BOOKS.length) {
+                setCurrentBookIndex(prev => prev + 1);
+                setScreen('deck');
+            } else {
+                // Reset for demo
+                setCurrentBookIndex(0);
+                alert("You've gone through all the books! Restarting stack.");
+                setScreen('tags');
+            }
+        };
+
+        const checkMatch = (book) => {
+            // Simple Logic: High Match if ANY user tag matches book's preferred tags
+            const matchCount = book.preferredUserTags.filter(tag => userTags.includes(tag)).length;
+            
+            if (matchCount >= 1) {
+                setResultStatus('match');
+                setScreen('result');
+            } else {
+                setScreen('chat');
+            }
+        };
+
+        const handleChatComplete = (isSuccess) => {
+            setResultStatus(isSuccess ? 'match' : 'fail');
+            setScreen('result');
+        };
+
+        const reset = () => {
+            setScreen('deck');
+            nextBook(); // Move to next book after result
+        };
+
+        return (
+            <div className="w-full h-full relative bg-gray-50 text-gray-800 flex flex-col">
+                
+                {/* Header */}
+                <div className="absolute top-0 w-full p-4 md:p-6 flex justify-center z-20 pointer-events-none">
+                    <span className="font-serif font-bold text-gray-300 tracking-[0.3em] text-xs md:text-sm">BOOKDATE</span>
+                </div>
+
+                <div className="flex-1 relative w-full h-full overflow-hidden">
+                    <AnimatePresence mode='wait'>
+                        {screen === 'tags' && (
+                            <motion.div key="tags" className="w-full h-full absolute top-0 left-0" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+                                <TagSelection onStart={startMatching} />
+                            </motion.div>
+                        )}
+
+                        {screen === 'deck' && (
+                            <div key="deck" className="w-full h-full flex flex-col items-center justify-center relative px-4 pt-4">
+                                {/* Responsive Card Container: Adjusts height based on screen size */}
+                                <div className="w-full max-w-[420px] h-[65vh] md:h-[68%] relative z-10">
+                                    <SwipeCard 
+                                        key={BOOKS[currentBookIndex].id} 
+                                        book={BOOKS[currentBookIndex]} 
+                                        onSwipe={handleSwipe} 
+                                    />
+                                    {/* Depth Card */}
+                                    <div className="absolute inset-0 bg-gray-200 rounded-3xl transform scale-95 translate-y-3 -z-10 shadow-lg"></div>
+                                    <div className="absolute inset-0 bg-gray-100 rounded-3xl transform scale-90 translate-y-6 -z-20 shadow-sm"></div>
+                                </div>
+
+                                {/* Control Buttons */}
+                                <div className="flex gap-6 md:gap-8 mt-6 md:mt-10 z-20">
+                                    <button onClick={() => handleSwipe('left')} className="w-16 h-16 md:w-18 md:h-18 bg-white rounded-full shadow-xl flex items-center justify-center text-red-500 border border-gray-100 hover:scale-110 transition-transform active:scale-90 active:bg-red-50">
+                                        <IconX className="w-8 h-8" />
+                                    </button>
+                                    <button onClick={() => handleSwipe('right')} className="w-16 h-16 md:w-18 md:h-18 bg-white rounded-full shadow-xl flex items-center justify-center text-green-500 border border-gray-100 hover:scale-110 transition-transform active:scale-90 active:bg-green-50">
+                                        <IconHeart className="w-8 h-8" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {screen === 'waiting' && (
+                            <motion.div key="waiting" className="w-full h-full absolute top-0 left-0 bg-white/60 backdrop-blur-sm z-50" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+                                <WaitingScreen book={BOOKS[currentBookIndex]} />
+                            </motion.div>
+                        )}
+
+                        {screen === 'chat' && (
+                            <motion.div key="chat" className="w-full h-full absolute top-0 left-0 z-40 bg-white" initial={{y: '100%'}} animate={{y: 0}} exit={{y: '100%'}} transition={{type: 'spring', damping: 25, stiffness: 200}}>
+                                <ChatScreen book={BOOKS[currentBookIndex]} onComplete={handleChatComplete} />
+                            </motion.div>
+                        )}
+
+                        {screen === 'result' && (
+                            <motion.div key="result" className="w-full h-full absolute top-0 left-0 z-40 bg-white" initial={{scale: 0.95, opacity:0}} animate={{scale: 1, opacity: 1}}>
+                                <ResultScreen status={resultStatus} book={BOOKS[currentBookIndex]} onReset={reset} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+</script>
+</body>
+</html>
