@@ -27,7 +27,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            /* Use dvh for dynamic viewport height on mobile browsers */
+            /* Use dvh for dynamic viewport height on mobile browsers (iPad Safari fix) */
             min-height: 100vh; 
             min-height: 100dvh;
             margin: 0;
@@ -91,7 +91,7 @@
         </svg>
     );
 
-    // --- 1. DATA SETUP (With D2D Path Prefix) ---
+    // --- 1. DATA SETUP ---
     
     const USER_TAGS = [
         "Sci-Fi Geek", "Philosophy Thinker", "Political Enthusiast", 
@@ -99,8 +99,8 @@
         "Optimist", "Nature Lover", "History Buff"
     ];
 
-    // Prefix for GitHub Repo Structure
-    const PATH_PREFIX = "images/";
+    // PATH IS RELATIVE
+    const PATH_PREFIX = "./images/";
 
     const BOOKS = [
         {
@@ -167,7 +167,7 @@
             id: 6,
             title: "A Room of One's Own",
             author: "Virginia Woolf",
-            cover: `${PATH_PREFIX}A Room of One's Own.jpg`,
+            cover: `${PATH_PREFIX}A Room of Ones Own.jpg`,
             tags: ["Feminist", "Essay", "Classic"],
             preferredUserTags: ["Feminist", "Philosophy Thinker", "Political Enthusiast"],
             questions: [
@@ -263,7 +263,6 @@
 
     // --- 2. COMPONENTS ---
 
-    // Responsive Fix: Flex Layout to ensure button sticks to bottom without overflow
     const TagSelection = ({ onStart }) => {
         const [selected, setSelected] = useState([]);
 
@@ -299,7 +298,6 @@
                     </div>
                 </div>
                 
-                {/* Fixed bottom area */}
                 <div className="p-10 pt-4 shrink-0">
                     <button 
                         disabled={selected.length === 0}
@@ -347,7 +345,7 @@
                     <span className="text-red-600 font-extrabold text-4xl tracking-widest">NOPE</span>
                 </motion.div>
 
-                {/* Cover Image - Flex Grow to take available space */}
+                {/* Cover Image - Flex Grow */}
                 <div className="flex-grow relative bg-gray-100 overflow-hidden">
                     <img src={book.cover} alt={book.title} className="w-full h-full object-cover select-none pointer-events-none" />
                     <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
@@ -357,7 +355,7 @@
                     </div>
                 </div>
 
-                {/* Details - Fixed height content */}
+                {/* Details - Fixed height */}
                 <div className="p-6 md:p-8 bg-white shrink-0">
                     <div className="flex flex-wrap gap-2 mb-2">
                         {book.tags.map(t => (
@@ -389,7 +387,6 @@
         );
     };
 
-    // Responsive Fix: Using min-h-0 to allow nested flex scrolling
     const ChatScreen = ({ book, onComplete }) => {
         const [step, setStep] = useState(0);
         const [history, setHistory] = useState([]); 
@@ -428,7 +425,7 @@
 
         return (
             <div className="h-full flex flex-col bg-gray-50 w-full overflow-hidden">
-                {/* Header - Fixed */}
+                {/* Header */}
                 <div className="p-4 md:p-6 bg-white border-b border-gray-200 flex items-center shadow-sm z-10 shrink-0">
                     <img src={book.cover} className="w-10 h-10 md:w-14 md:h-14 rounded-full object-cover border border-gray-200 mr-4" />
                     <div>
@@ -437,7 +434,7 @@
                     </div>
                 </div>
 
-                {/* Chat History - Scrollable */}
+                {/* Chat History */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 w-full min-h-0" ref={scrollRef}>
                     {history.map((msg, idx) => (
                         <motion.div 
@@ -463,7 +460,7 @@
                     )}
                 </div>
 
-                {/* Options - Fixed at bottom */}
+                {/* Options - Fixed bottom */}
                 <div className="p-4 md:p-6 bg-white border-t border-gray-200 shrink-0 pb-8 md:pb-10">
                     {history.length > 0 && history[history.length-1].sender === 'book' && currentQuestion ? (
                         <div className="grid gap-3 md:gap-4">
@@ -488,26 +485,35 @@
     const ResultScreen = ({ status, book, onReset }) => {
         return (
             <div className="h-full flex flex-col items-center justify-center p-6 md:p-8 bg-white text-center relative overflow-y-auto">
+                {/* Status Header - Reduced size slightly to fit image */}
                 <motion.div 
-                    initial={{ scale: 0, rotate: -180 }} 
-                    animate={{ scale: 1, rotate: 0 }} 
-                    className="mb-6 md:mb-8 text-7xl md:text-8xl filter drop-shadow-lg"
-                    transition={{ type: "spring", damping: 12 }}
+                    initial={{ scale: 0 }} animate={{ scale: 1 }} 
+                    className="text-5xl md:text-6xl mb-4"
                 >
                     {status === 'match' ? '💖' : '👋'}
                 </motion.div>
 
-                <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4 text-gray-900">
+                <h2 className="text-2xl md:text-3xl font-serif font-bold mb-6 text-gray-900">
                     {status === 'match' ? "It's a Match!" : "Not quite a match..."}
                 </h2>
 
-                <p className="text-lg md:text-xl text-gray-600 mb-8 md:mb-10 max-w-md leading-relaxed">
+                {/* NEW: Book Cover Display */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="relative w-40 h-60 md:w-48 md:h-72 shadow-2xl rounded-lg overflow-hidden border-4 border-white mb-6 shrink-0"
+                >
+                    <img src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                </motion.div>
+
+                <p className="text-lg text-gray-600 mb-6 max-w-md leading-relaxed px-4">
                     {status === 'match' 
                         ? <span>You and <strong>{book.title}</strong> are meant to be. Go pick it up before someone else does.</span> 
                         : <span>Maybe <strong>{book.title}</strong> wasn't the one, but it's still worth a read. We saved it for you anyway.</span>}
                 </p>
 
-                <div className="w-full max-w-sm bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-8 md:mb-12 flex flex-col items-center">
+                <div className="w-full max-w-sm bg-gray-50 p-4 md:p-6 rounded-2xl border border-gray-200 mb-8 flex flex-col items-center">
                     <div className="flex items-center justify-center text-rose-500 mb-3 bg-white p-3 rounded-full shadow-sm">
                         <IconMapPin className="w-6 h-6 md:w-8 md:h-8" />
                     </div>
@@ -556,7 +562,6 @@
                 setCurrentBookIndex(prev => prev + 1);
                 setScreen('deck');
             } else {
-                // Reset for demo
                 setCurrentBookIndex(0);
                 alert("You've gone through all the books! Restarting stack.");
                 setScreen('tags');
@@ -564,7 +569,6 @@
         };
 
         const checkMatch = (book) => {
-            // Simple Logic: High Match if ANY user tag matches book's preferred tags
             const matchCount = book.preferredUserTags.filter(tag => userTags.includes(tag)).length;
             
             if (matchCount >= 1) {
@@ -582,7 +586,7 @@
 
         const reset = () => {
             setScreen('deck');
-            nextBook(); // Move to next book after result
+            nextBook();
         };
 
         return (
@@ -603,19 +607,17 @@
 
                         {screen === 'deck' && (
                             <div key="deck" className="w-full h-full flex flex-col items-center justify-center relative px-4 pt-4">
-                                {/* Responsive Card Container: Adjusts height based on screen size */}
+                                {/* Responsive Card Container */}
                                 <div className="w-full max-w-[420px] h-[65vh] md:h-[68%] relative z-10">
                                     <SwipeCard 
                                         key={BOOKS[currentBookIndex].id} 
                                         book={BOOKS[currentBookIndex]} 
                                         onSwipe={handleSwipe} 
                                     />
-                                    {/* Depth Card */}
                                     <div className="absolute inset-0 bg-gray-200 rounded-3xl transform scale-95 translate-y-3 -z-10 shadow-lg"></div>
                                     <div className="absolute inset-0 bg-gray-100 rounded-3xl transform scale-90 translate-y-6 -z-20 shadow-sm"></div>
                                 </div>
 
-                                {/* Control Buttons */}
                                 <div className="flex gap-6 md:gap-8 mt-6 md:mt-10 z-20">
                                     <button onClick={() => handleSwipe('left')} className="w-16 h-16 md:w-18 md:h-18 bg-white rounded-full shadow-xl flex items-center justify-center text-red-500 border border-gray-100 hover:scale-110 transition-transform active:scale-90 active:bg-red-50">
                                         <IconX className="w-8 h-8" />
